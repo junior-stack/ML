@@ -70,7 +70,8 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = inputs
+        out = torch.sigmoid(self.g(inputs))
+        out = torch.sigmoid(self.h(out))
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
@@ -96,7 +97,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     model.train()
 
     # Define optimizers and loss function.
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr,weight_decay=lamb)
     num_student = train_data.shape[0]
 
     for epoch in range(0, num_epoch):
@@ -109,9 +110,12 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             optimizer.zero_grad()
             output = model(inputs)
 
+
             # Mask the target to only compute the gradient of valid entries.
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
+
+            regularize =model.get_weight_norm()
 
             loss = torch.sum((output - target) ** 2.)
             loss.backward()
@@ -162,13 +166,14 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
+    num_question = zero_train_matrix.shape[1]
     k = None
-    model = None
+    model = AutoEncoder(num_question,100)
 
     # Set optimization hyperparameters.
-    lr = None
-    num_epoch = None
-    lamb = None
+    lr = 0.05
+    num_epoch = 35
+    lamb = 0.01
 
     train(model, lr, lamb, train_matrix, zero_train_matrix,
           valid_data, num_epoch)
