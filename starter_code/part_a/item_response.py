@@ -1,4 +1,6 @@
 from utils import *
+from ensemble import bootstrap
+import matplotlib.pyplot as plt
 
 import numpy as np
 
@@ -25,6 +27,12 @@ def neg_log_likelihood(data, theta, beta):
     # Implement the function as described in the docstring.             #
     #####################################################################
     log_lklihood = 0.
+    for t in range(len(data['is_correct'])):
+        i = data['user_id'][t]
+        j = data['question_id'][t]
+        c_ij = data['is_correct'][t]
+        log_lklihood += c_ij * (theta[i] - beta[j]) - np.log(1 + np.exp(theta[i] - beta[j]))
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -42,7 +50,7 @@ def update_theta_beta(data, lr, theta, beta):
     You may optionally replace the function arguments to receive a matrix.
 
     :param data: A dictionary {user_id: list, question_id: list,
-    is_correct: list}
+    is_correct: list} sparse matrix
     :param lr: float
     :param theta: Vector
     :param beta: Vector
@@ -52,7 +60,31 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    pass
+
+    user_copy = np.array(data['user_id'])
+    question_copy = np.array(data['question_id'])
+    partial_theta = []
+    for i in range(542):
+        j_list = np.where(user_copy == i)
+        j_list = [int(j) for j in j_list[0]]
+        partial_theta_i = 0
+        for j in j_list:
+            question = data['question_id'][j]
+            partial_theta_i += data['is_correct'][j] -sigmoid(theta[i] - beta[question])
+        partial_theta.append(partial_theta_i)
+    theta += lr * np.array(partial_theta)
+    partial_beta = []
+    for j in range(1774):
+        i_list = np.where(question_copy == j)
+        i_list = [int(i) for i in i_list[0]]
+        partial_beta_j = 0
+        for i in i_list:
+            student = data['user_id'][i]
+            partial_beta_j += sigmoid(theta[student] - beta[j]) - data['is_correct'][i]
+        partial_beta.append(partial_beta_j)
+    beta += lr * np.array(partial_beta)
+
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -73,8 +105,10 @@ def irt(data, val_data, lr, iterations):
     :return: (theta, beta, val_acc_lst)
     """
     # TODO: Initialize theta and beta.
-    theta = None
-    beta = None
+    x = np.random.randint(9, size=542)
+    theta = np.array([float(i) for i in x])
+    x = np.random.randint(9, size=1774)
+    beta = np.array([float(i) for i in x])
 
     val_acc_lst = []
 
@@ -114,13 +148,58 @@ def main():
     sparse_matrix = load_train_sparse("../data")
     val_data = load_valid_csv("../data")
     test_data = load_public_test_csv("../data")
+    train_copy = sparse_matrix.toarray()
+
+
+
+    #Bootstrap:
+    #training1, training2, training3 = bootstrap()
+    #theta, beta, val_acc_lst
+
 
     #####################################################################
     # TODO:                                                             #
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    pass
+    lr = 0.025
+    iterations = 20
+    np.random.seed(1005705621)
+    neg_lld_list = []
+    neg_lld_val_list = []
+    iteration_list = []
+    x = np.random.randint(9, size=542)
+    theta = np.array([float(i) for i in x])
+    x = np.random.randint(9, size=1774)
+    beta = np.array([float(i) for i in x])
+    for i in range(iterations + 1):
+        neg_lld = -neg_log_likelihood(train_data, theta=theta, beta=beta)
+        neg_lld_val = - neg_log_likelihood(val_data, theta=theta, beta=beta)
+        neg_lld_list.append(neg_lld)
+        neg_lld_val_list.append(neg_lld_val)
+        theta, beta = update_theta_beta(train_data, lr, theta=theta, beta=beta)
+        iteration_list.append(iterations)
+
+    #plt.plot(iteration_list,  neg_lld_list, "b-", "training loglikelihood")
+    #plt.show()
+    #plt.plot(iteration_list, neg_lld_val_list, "b--", "validation loglikelihood")
+    #plt.show()
+
+    score = evaluate(data=val_data, theta=theta, beta=beta)
+    print("Validation accuracies is ", score)
+    score = evaluate(data=test_data, theta=theta, beta=beta)
+    print("Test Accuracies is ", score)
+
+    question = np.random.randint(low=0, high=1773, size=5)
+    for q in question:
+        beta_q = beta[q]
+        theta_list = range(-5, 6)
+        p_x = lambda x: np.exp(x - beta_q) / (1 + np.exp(x - beta_q))
+        p = [p_x(i) for i in theta_list]
+        plt.plot(theta_list, p, label="questionID: "+ str(q))
+    plt.legend()
+    plt.savefig("Probability given 5 questions" + ".png")
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -129,10 +208,12 @@ def main():
     # TODO:                                                             #
     # Implement part (c)                                                #
     #####################################################################
-    pass
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
+
+
 
 
 if __name__ == "__main__":
