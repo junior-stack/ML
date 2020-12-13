@@ -115,7 +115,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            regularize =model.get_weight_norm()
+            # regularize =model.get_weight_norm()
 
             loss = torch.sum((output - target) ** 2.)
             loss.backward()
@@ -167,16 +167,17 @@ def main():
     #####################################################################
     # Set model hyperparameters.
     num_question = zero_train_matrix.shape[1]
-    k = None
-    model = AutoEncoder(num_question,100)
+    k = [10,50,100,200,500]
+    for i in k:
+        model = AutoEncoder(num_question,i)
 
-    # Set optimization hyperparameters.
-    lr = 0.05
-    num_epoch = 35
-    lamb = 0.01
+        # Set optimization hyperparameters.
+        lr = 0.05
+        num_epoch = 35
+        lamb = 0.01
 
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
-          valid_data, num_epoch)
+        train(model, lr, lamb, train_matrix, zero_train_matrix,
+              valid_data, num_epoch)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
