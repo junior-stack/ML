@@ -97,7 +97,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     model.train()
 
     # Define optimizers and loss function.
-    optimizer = optim.SGD(model.parameters(), lr=lr,weight_decay=lamb)
+    optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
 
     for epoch in range(0, num_epoch):
@@ -115,9 +115,9 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            # regularize =model.get_weight_norm()
+            regularize =model.get_weight_norm()
 
-            loss = torch.sum((output - target) ** 2.)
+            loss = torch.sum((output - target) ** 2.)+0.5*lamb*regularize
             loss.backward()
 
             train_loss += loss.item()
