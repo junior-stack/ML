@@ -1,5 +1,4 @@
 from utils import *
-from ensemble import bootstrap
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -172,6 +171,7 @@ def main():
     theta = np.array([float(i) for i in x])
     x = np.random.randint(9, size=1774)
     beta = np.array([float(i) for i in x])
+    # irt(train_data, val_data, lr, iterations)
     for i in range(iterations + 1):
         neg_lld = -neg_log_likelihood(train_data, theta=theta, beta=beta)
         neg_lld_val = - neg_log_likelihood(val_data, theta=theta, beta=beta)
@@ -179,12 +179,22 @@ def main():
         neg_lld_val_list.append(neg_lld_val)
         theta, beta = update_theta_beta(train_data, lr, theta=theta, beta=beta)
         iteration_list.append(iterations)
+        score = evaluate(data=val_data, theta=theta, beta=beta)
+        print("NLLK: {} \t Score: {}".format(neg_lld, score))
+
 
     #plt.plot(iteration_list,  neg_lld_list, "b-", "training loglikelihood")
     #plt.show()
     #plt.plot(iteration_list, neg_lld_val_list, "b--", "validation loglikelihood")
     #plt.show()
-
+    to = 0.
+    a = beta.max()
+    b = beta.min()
+    print(a)
+    print(b)
+    for i in beta:
+        to += i
+    print(to / len(beta))
     score = evaluate(data=val_data, theta=theta, beta=beta)
     print("Validation accuracies is ", score)
     score = evaluate(data=test_data, theta=theta, beta=beta)

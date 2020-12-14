@@ -102,8 +102,10 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
 
     for epoch in range(0, num_epoch):
         train_loss = 0.
+        print(epoch)
 
         for user_id in range(num_student):
+            print(user_id)
             inputs = Variable(zero_train_data[user_id]).unsqueeze(0)
             target = inputs.clone()
 
@@ -129,6 +131,48 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
+
+
+def trainforens(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
+    """ The method is for ensemble of neural net part
+    """
+    model.train()
+
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+    num_student = train_data.shape[0]
+    for epoch in range(0, num_epoch):
+        train_loss = 0.
+
+
+        for user_id in range(num_student):
+
+            inputs = Variable(zero_train_data[user_id]).unsqueeze(0)
+            target = inputs.clone()
+
+            optimizer.zero_grad()
+            output = model(inputs)
+
+            nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
+            target[0][nan_mask] = output[0][nan_mask]
+
+            regularize = model.get_weight_norm()
+
+            loss = torch.sum((output - target) ** 2.) + 0.5 * lamb * regularize
+            loss.backward()
+
+            train_loss += loss.item()
+            optimizer.step()
+        model.eval()
+
+    l = []
+
+    for i, u in enumerate(valid_data["user_id"]):
+        inputs = Variable(zero_train_data[u]).unsqueeze(0)
+        output = model(inputs)
+
+        guess = output[0][valid_data["question_id"][i]].item()
+        l.append(guess)
+    return l
 
 
 def evaluate(model, train_data, valid_data):
@@ -173,11 +217,14 @@ def main():
 
         # Set optimization hyperparameters.
         lr = 0.05
-        num_epoch = 35
+        num_epoch = 5
         lamb = 0.01
 
         train(model, lr, lamb, train_matrix, zero_train_matrix,
               valid_data, num_epoch)
+
+    # Set optimization hyperparameters.
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
