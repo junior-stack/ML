@@ -130,7 +130,8 @@ def irt(data,lr, iterations):
             if data["is_correct"][j]>0:
                 totalcorrect+=1
             for k in question_meta[question]:
-                user_category[i][k] +=1
+                tmp = int(k.strip())
+                user_category[i][tmp] +=1
         theta[i] += (total/len(j_list)-betamean)**2
 
 
@@ -153,8 +154,9 @@ def evaluate(data, theta, beta,user_category):
         x = (theta[u] - beta[q]).sum()
         regularization = 0.
         for k in question_category[q]:
-            regularization+=user_category[u][k]
-        x+=regularization*0.005
+            tmp = int(k.strip())
+            regularization+=user_category[u][tmp]
+        x+=regularization*0.0002
         p_a = sigmoid(x)
         pred.append(p_a >= 0.5)
     return np.sum((data["is_correct"] == np.array(pred))) \
