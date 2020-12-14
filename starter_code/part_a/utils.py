@@ -41,7 +41,7 @@ def load_question_meta():
         reader = csv.reader(csv_file)
         for row in reader:
             try:
-                data[int(row[0])] = row[1][1:-1].split()
+                data[int(row[0])] = row[1][1:-1].split(",")
             except ValueError:
                 # Pass first row.
                 pass
