@@ -31,6 +31,24 @@ def _load_csv(path):
                 pass
     return data
 
+def load_question_meta():
+    if not os.path.exists("../data"):
+        raise Exception("The specified path {} does not exist.".format("../data"))
+        # Initialize the data.
+    data = list(range(1775))
+    # Iterate over the row to fill in the data.
+    with open("../data/question_meta.csv", "r") as csv_file:
+        reader = csv.reader(csv_file)
+        for row in reader:
+            try:
+                data[int(row[0])] = row[1][1:-1].split()
+            except ValueError:
+                # Pass first row.
+                pass
+            except IndexError:
+                # is_correct might not be available.
+                pass
+    return data
 
 def load_train_sparse(root_dir="/data"):
     """ Load the training data as a spare matrix representation.

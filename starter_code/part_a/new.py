@@ -7,7 +7,7 @@ import numpy as np
 def sigmoid(x):
     """ Apply sigmoid function.
     """
-    return np.exp(x) / (1 + np.exp(x))
+    return 1.2**(x) / (1 + 1.2**x)
 
 
 def neg_log_likelihood(data, theta, beta):
@@ -59,7 +59,7 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-
+    t = 12
     user_copy = np.array(data['user_id'])
     question_copy = np.array(data['question_id'])
     partial_theta = []
@@ -69,7 +69,7 @@ def update_theta_beta(data, lr, theta, beta):
         partial_theta_i = 0
         for j in j_list:
             question = data['question_id'][j]
-            partial_theta_i += data['is_correct'][j] -sigmoid(theta[i] - beta[question])
+            partial_theta_i +=  np.exp(t/10)*((data['is_correct'][j]-1)*10.**beta[question]*t**theta[i]+data['is_correct'][j]*10.**theta[i]*t**beta[question])/(10.**theta[i]*t**beta[question]+10.**beta[question]*t**theta[i])
         partial_theta.append(partial_theta_i)
     theta += lr * np.array(partial_theta)
     partial_beta = []
@@ -79,7 +79,10 @@ def update_theta_beta(data, lr, theta, beta):
         partial_beta_j = 0
         for i in i_list:
             student = data['user_id'][i]
-            partial_beta_j += sigmoid(theta[student] - beta[j]) - data['is_correct'][i]
+            partial_beta_j += -np.exp(t/10) * ((data['is_correct'][i] - 1) * 10. ** beta[j]* t ** theta[student]+ data['is_correct'][
+                i] * 10. ** theta[student]* t ** beta[j]) / (
+                        10. ** theta[student] * t ** beta[j] + 10. ** beta[j] * t ** theta[student])
+
         partial_beta.append(partial_beta_j)
     beta += lr * np.array(partial_beta)
 
@@ -90,7 +93,7 @@ def update_theta_beta(data, lr, theta, beta):
     return theta, beta
 
 
-def irt(data, val_data, lr, iterations):
+def irt(data,lr, iterations):
     """ Train IRT model.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -108,21 +111,33 @@ def irt(data, val_data, lr, iterations):
     theta = np.array([float(i) for i in x])
     x = np.random.randint(9, size=1774)
     beta = np.array([float(i) for i in x])
+    question_meta = load_question_meta()
+    user_category = np.zeros([542,1774])
 
-    val_acc_lst = []
 
     for i in range(iterations):
-        neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
-        score = evaluate(data=val_data, theta=theta, beta=beta)
-        val_acc_lst.append(score)
-        print("NLLK: {} \t Score: {}".format(neg_lld, score))
         theta, beta = update_theta_beta(data, lr, theta, beta)
+    betamean = beta.mean()
+    user_copy = np.array(data['user_id'])
+    for i in range(542):
+        j_list = np.where(user_copy == i)
+        j_list = [int(j) for j in j_list[0]]
+        totalcorrect = 0
+        total = 0.
+        for j in j_list:
+            question = data['question_id'][j]
+            total+=beta[question]
+            if data["is_correct"][j]>0:
+                totalcorrect+=1
+            for k in question_meta[question]:
+                user_category[i][k] +=1
+        theta[i] += (total/len(j_list)-betamean)**2
 
-    # TODO: You may change the return values to achieve what you want.
-    return theta, beta, val_acc_lst
+
+    return theta, beta,user_category
 
 
-def evaluate(data, theta, beta):
+def evaluate(data, theta, beta,user_category):
     """ Evaluate the model given data and return the accuracy.
     :param data: A dictionary {user_id: list, question_id: list,
     is_correct: list}
@@ -131,10 +146,15 @@ def evaluate(data, theta, beta):
     :param beta: Vector
     :return: float
     """
+    question_category = load_question_meta()
     pred = []
     for i, q in enumerate(data["question_id"]):
         u = data["user_id"][i]
         x = (theta[u] - beta[q]).sum()
+        regularization = 0.
+        for k in question_category[q]:
+            regularization+=user_category[u][k]
+        x+=regularization*0.005
         p_a = sigmoid(x)
         pred.append(p_a >= 0.5)
     return np.sum((data["is_correct"] == np.array(pred))) \
@@ -171,30 +191,31 @@ def main():
     theta = np.array([float(i) for i in x])
     x = np.random.randint(9, size=1774)
     beta = np.array([float(i) for i in x])
-    # irt(train_data, val_data, lr, iterations)
-    for i in range(iterations + 1):
-        neg_lld = -neg_log_likelihood(train_data, theta=theta, beta=beta)
-        neg_lld_val = - neg_log_likelihood(val_data, theta=theta, beta=beta)
-        neg_lld_list.append(neg_lld)
-        neg_lld_val_list.append(neg_lld_val)
-        theta, beta = update_theta_beta(train_data, lr, theta=theta, beta=beta)
-        iteration_list.append(iterations)
-        score = evaluate(data=val_data, theta=theta, beta=beta)
-        print("NLLK: {} \t Score: {}".format(neg_lld, score))
-
+    t,b,u = irt(train_data,  lr, iterations)
+    print(evaluate(val_data,t,b,u))
+    # for i in range(iterations + 1):
+    #     neg_lld = -neg_log_likelihood(train_data, theta=theta, beta=beta)
+    #     neg_lld_val = - neg_log_likelihood(val_data, theta=theta, beta=beta)
+    #     neg_lld_list.append(neg_lld)
+    #     neg_lld_val_list.append(neg_lld_val)
+    #     theta, beta = update_theta_beta(train_data, lr, theta=theta, beta=beta)
+    #     iteration_list.append(iterations)
+    #     score = evaluate(data=val_data, theta=theta, beta=beta)
+    #     print("NLLK: {} \t Score: {}".format(neg_lld, score))
 
     #plt.plot(iteration_list,  neg_lld_list, "b-", "training loglikelihood")
     #plt.show()
     #plt.plot(iteration_list, neg_lld_val_list, "b--", "validation loglikelihood")
     #plt.show()
     to = 0.
-    a = beta.max()
-    b = beta.min()
-    print(a)
-    print(b)
-    for i in beta:
-        to += i
-    print(to / len(beta))
+    # a = beta.max()
+    # b = beta.min()
+    # print(a)
+    # print(b)
+    # print(beta.mean())
+    # print(theta.min())
+    # print(theta.max())
+    # print(theta.mean())
     score = evaluate(data=val_data, theta=theta, beta=beta)
     print("Validation accuracies is ", score)
     score = evaluate(data=test_data, theta=theta, beta=beta)
